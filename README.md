@@ -51,5 +51,14 @@ $ curl http://localhost:9933/proxy/138159a7-877b-4837-96eb-4502bd70dee8/health
 {"status":"UP","diskSpace":{"status":"UP","total":498937626624,"free":70210977792,"threshold":10485760},"db":{"status":"UP","database":"MySQL","hello":1}}
 ```
 
+## Dashboard UI
+
+You can also register apps and access actuator endpoints from UI.
+
+![image](https://user-images.githubusercontent.com/106908/29252328-c2e033de-809f-11e7-9a92-cf9ad261b19b.png)
+
+
+![image](https://user-images.githubusercontent.com/106908/29252330-d143447a-809f-11e7-8b65-3e2faf55507f.png)
+
 ----
 _Licensed under [Apache Software License 2.0](www.apache.org/licenses/LICENSE-2.0)_
