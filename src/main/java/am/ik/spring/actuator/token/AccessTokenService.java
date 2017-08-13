@@ -4,6 +4,7 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Collections;
 import java.util.Date;
+import java.util.Objects;
 
 import org.springframework.stereotype.Service;
 
@@ -39,6 +40,11 @@ public class AccessTokenService {
 						.fromCallable(
 								() -> new AccessToken(applicationId, generateToken())) //
 						.compose(this.accessTokenRepository::save));
+	}
+
+	public Mono<AccessToken> checkToken(String applicationId, String token) {
+		return this.accessTokenRepository.findById(applicationId) //
+				.filter(accessToken -> Objects.equals(accessToken.getToken(), token));
 	}
 
 	String generateToken() {

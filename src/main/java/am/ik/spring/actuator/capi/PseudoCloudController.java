@@ -3,7 +3,6 @@ package am.ik.spring.actuator.capi;
 import static java.util.Collections.singletonMap;
 
 import java.util.Map;
-import java.util.Objects;
 
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -15,20 +14,20 @@ import org.springframework.web.bind.annotation.RestController;
 
 import am.ik.spring.actuator.SpringBootActuatorDashboardProps;
 import am.ik.spring.actuator.application.ApplicationRepository;
-import am.ik.spring.actuator.token.AccessTokenRepository;
+import am.ik.spring.actuator.token.AccessTokenService;
 import reactor.core.publisher.Mono;
 
 @RestController
 public class PseudoCloudController {
 	private final ApplicationRepository applicationRepository;
-	private final AccessTokenRepository accessTokenRepository;
+	private final AccessTokenService accessTokenService;
 	private final SpringBootActuatorDashboardProps props;
 
 	public PseudoCloudController(ApplicationRepository applicationRepository,
-			AccessTokenRepository accessTokenRepository,
+			AccessTokenService accessTokenService,
 			SpringBootActuatorDashboardProps props) {
 		this.applicationRepository = applicationRepository;
-		this.accessTokenRepository = accessTokenRepository;
+		this.accessTokenService = accessTokenService;
 		this.props = props;
 	}
 
@@ -42,15 +41,18 @@ public class PseudoCloudController {
 			@PathVariable String applicationId,
 			@RequestHeader(HttpHeaders.AUTHORIZATION) String authorization) {
 		String token = authorization.substring(7);
-		return this.accessTokenRepository.findById(applicationId) //
-				.filter(accessToken -> Objects.equals(accessToken.getToken(), token))
+		Mono<ResponseEntity<Map<String, Boolean>>> alternate = Mono
+				.fromCallable(() -> ResponseEntity.status(HttpStatus.FORBIDDEN).build());
+		return this.accessTokenService.checkToken(applicationId, token) //
 				.flatMap(accessToken -> this.applicationRepository.findById(applicationId)
 						.map(application -> ResponseEntity
 								.ok(singletonMap("read_sensitive_data",
 										application.isReadSensitiveData()))) //
-						.switchIfEmpty(Mono
-								.fromCallable(() -> ResponseEntity.notFound().build())))
-				.switchIfEmpty(Mono.fromCallable(
-						() -> ResponseEntity.status(HttpStatus.FORBIDDEN).build()));
+						.switchIfEmpty(forbidden()))
+				.switchIfEmpty(alternate);
+	}
+
+	Mono<ResponseEntity<Map<String, Boolean>>> forbidden() {
+		return Mono.fromCallable(() -> ResponseEntity.notFound().build());
 	}
 }
