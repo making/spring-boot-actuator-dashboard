@@ -35,7 +35,8 @@ public class ProxyController {
 	public Mono<ResponseEntity<String>> get(@PathVariable String applicationId,
 			ServerHttpRequest request) {
 		return webClient(applicationId, request) //
-				.flatMap(client -> client.get().exchange() //
+				.flatMap(client -> client.get() //
+						.exchange() //
 						.flatMap(res -> res.bodyToMono(String.class) //
 								.map(b -> ResponseEntity.status(res.statusCode()).body(b)) //
 								.switchIfEmpty(emptyResponse(res))));
@@ -45,7 +46,7 @@ public class ProxyController {
 	public Mono<ResponseEntity<String>> post(@PathVariable String applicationId,
 			ServerHttpRequest request) {
 		return webClient(applicationId, request) //
-				.flatMap(client -> client.post()
+				.flatMap(client -> client.post() //
 						.header(CONTENT_TYPE, request.getHeaders().getFirst(CONTENT_TYPE)) //
 						.body(request.getBody(), DataBuffer.class) //
 						.exchange() //
