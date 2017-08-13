@@ -5,7 +5,6 @@ This dashboard unlocks [extended Cloud Foundry actuator support](http://docs.spr
 
 Pseudo Cloud Controller and UAA are implemented to access `/cloudfoundryapplication` endpoints.
 
-* No UI is implemented yet.
 * No Authentication/Authorization are implemented yet.
 
 ## Register a target app

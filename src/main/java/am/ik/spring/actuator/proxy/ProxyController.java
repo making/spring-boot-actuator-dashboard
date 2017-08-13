@@ -1,7 +1,6 @@
 package am.ik.spring.actuator.proxy;
 
-import static org.springframework.http.HttpHeaders.AUTHORIZATION;
-import static org.springframework.http.HttpHeaders.CONTENT_TYPE;
+import static org.springframework.http.HttpHeaders.*;
 
 import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.http.ResponseEntity;
@@ -71,10 +70,11 @@ public class ProxyController {
 		PathContainer wildcard = request.getPath().subPath(5);
 
 		return Mono.when(applicationMono, accessTokenMono) //
-				.map(tpl -> this.builder
+				.map(tpl -> this.builder.clone()
 						.baseUrl(tpl.getT1().getUrl() + "/cloudfoundryapplication/"
 								+ wildcard.value())
-						.defaultHeader(AUTHORIZATION, "bearer " + tpl.getT2().getToken())
+						.defaultHeader(AUTHORIZATION, "bearer " + tpl.getT2().getToken()) //
+						.defaultHeader(REFERER, request.getHeaders().getFirst(REFERER)) //
 						.build());
 	}
 }

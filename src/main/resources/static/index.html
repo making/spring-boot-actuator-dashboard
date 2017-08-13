@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Spring Boot Actuator Dashboard</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/semantic-ui/2.2.13/semantic.min.css"/>
+</head>
+<body>
+<div class="ui container">
+    <h1 class="ui dividing header"><a href="/dashboard">Applications</a></h1>
+    <h2 id="header" class="ui dividing header"></h2>
+    <div id="main">Loading...</div>
+</div>
+</body>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/axios/0.16.2/axios.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/semantic-ui/2.2.13/semantic.min.js"></script>
+<script>
+
+    document.addEventListener('DOMContentLoaded', function () {
+        init();
+    });
+    window.onpopstate = function () {
+        init();
+    };
+
+
+    function init() {
+        console.log('init...');
+        var split = location.href.split('/');
+        if (split.length > 4 && split[4]) {
+            var applicationId = split[4];
+            loadApp(applicationId);
+        } else {
+            loadApps();
+        }
+    }
+
+    function loadApps() {
+        return axios.get('/api/applications')
+            .then(function (res) {
+                renderApps(res.data);
+            });
+    }
+
+    function renderApps(apps) {
+        var main = document.getElementById('main');
+        var header = document.getElementById('header');
+        header.innerText = 'List';
+        var html = ['<table class="ui celled table">', '<thead><tr><th>Name</th><th>URL</th><th>Operations</th></tr></thead>', '<tbody>'];
+        for (var i = 0; i < apps.length; i++) {
+            var app = apps[i];
+            html.push('<tr>');
+            html.push('<td>');
+            html.push('<a href="javascript:void(0);" onclick="loadApp(\'' + app.applicationId + '\')" >');
+            html.push(app.applicationName);
+            html.push('</a>');
+            html.push('</td>');
+            html.push('<td>');
+            html.push('<a href="' + app.url + '" >');
+            html.push(app.url);
+            html.push('</a>');
+            html.push('</td>');
+            html.push('<td>');
+            html.push('<a href="javascript:void(0);" onclick="unregisterApp(\'' + app.applicationId + '\')" >');
+            html.push('Unregister</a>');
+            html.push('</td>');
+            html.push('</tr>');
+        }
+        html.push('</tbody>');
+        html.push('</table>');
+        html.push('<h2 class="ui dividing header">Register an app</h2>');
+        html.push('<form name="application" class="ui form">');
+        html.push('<div class="two fields">');
+        html.push('<div class="field">');
+        html.push('<label for="applicationName">Name</label>');
+        html.push('<input id="applicationName" name="applicationName" required>');
+        html.push('</div>');
+        html.push('<div class="field">');
+        html.push('<label for="url">URL</label>');
+        html.push('<input id="url" name="url" type="url" required>');
+        html.push('</div>');
+        html.push('</div>');
+        html.push('<input type="submit" name="submit" value="Register" class="ui button">');
+        html.push('</form>');
+        main.innerHTML = html.join('');
+
+        var form = document.forms['application'];
+        form.onsubmit = registerApp;
+    }
+
+    function loadApp(applicationId) {
+        history.pushState(null, null, '/dashboard/' + applicationId);
+        var app = axios.get('/api/applications/' + applicationId)
+            .then(function (res) {
+                return res.data;
+            });
+        var token = axios.post('/api/applications/' + applicationId + '/token')
+            .then(function (res) {
+                return res.data.token;
+            });
+
+        var properties = axios.get('/api/applications/' + applicationId + '/properties')
+            .then(function (res) {
+                return res.data;
+            });
+
+        return Promise.all([app, token, properties])
+            .then(function (res) {
+                renderApp(res[0], res[1], res[2]);
+            });
+    }
+
+    function registerApp(event) {
+        event.preventDefault();
+        var form = event.target;
+        var body = {
+            applicationName: form.applicationName.value,
+            url: form.url.value
+        };
+        form.submit.disabled = true;
+        axios.post('/api/applications', body)
+            .then(function (res) {
+                loadApps();
+            });
+    }
+
+
+    function unregisterApp(applicationId) {
+        return axios.delete('/api/applications/' + applicationId)
+            .then(function (res) {
+                loadApps();
+            });
+    }
+
+    function renderApp(app, token, properties) {
+        var main = document.getElementById('main');
+        var header = document.getElementById('header');
+        var applicationId = app.applicationId;
+        header.innerText = app.applicationName;
+
+        var cmd = 'curl -H "Authorization: bearer ' + token + '" ' + app.url + '/cloudfoundryapplication';
+        var html = ['<h3 class="ui dividing header">curl</h3>', '<div class="ui positive message"><pre><code>', cmd, '</code></pre></div>',
+            '<h3 class="ui dividing header"><code>application.properties</code></h3>', '<div class="ui positive message"><pre><code>', properties, '</code></pre></div>',
+            '<h3 class="ui dividing header">Endpoints</h3>', '<div id="endpoints">Loading ...</div>'];
+
+        main.innerHTML = html.join('');
+
+        var endpoints = document.getElementById('endpoints');
+        axios.get('/proxy/' + applicationId + '/')
+            .then(function (res) {
+                console.log(res.data._links);
+                var links = res.data._links;
+                var html = [];
+
+                for (var key in links) {
+                    if (links.hasOwnProperty(key)) {
+                        html.push('<button class="ui green mini button" onclick="loadEndpoint(\'' + app.applicationId + '\',\'' + key + '\')">');
+                        html.push(key);
+                        html.push('</button>');
+                    }
+                }
+
+                html.push('<div class="ui positive message">');
+                html.push('<div id="response"></div>');
+                html.push('</div>');
+                endpoints.innerHTML = html.join('');
+            })
+            .catch(function (error) {
+                endpoints.innerHTML = '<code>application.properties</code> does not seems to be configured.';
+            });
+    }
+
+    function loadEndpoint(applicationId, endpoint) {
+        if (endpoint === 'heapdump') {
+            alert('heapdump is currently not supported.')
+            return;
+        }
+
+        var response = document.getElementById('response');
+        endpoint = (endpoint === 'self') ? '/' : endpoint;
+        axios.get('/proxy/' + applicationId + '/' + endpoint) //
+            .then(function (res) {
+                console.log(res.data);
+                response.innerHTML = '<pre><code>' + JSON.stringify(res.data, null, 2) + '</code></pre>';
+            });
+    }
+</script>
+</html>
