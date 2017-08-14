@@ -46,11 +46,14 @@ public class ApplicationController {
 
 	@GetMapping("{applicationId}/properties")
 	public Mono<String> properties(@PathVariable String applicationId) {
-		return Flux
-				.just("VCAP_APPLICATION={}", "VCAP_SERVICES={}",
-						"vcap.application.application_id=" + applicationId,
-						"vcap.application.cf_api=" + props.getExternalUrl(),
-						"# management.cloudfoundry.skip-ssl-validation=true # if needed")
-				.collect(Collectors.joining(System.lineSeparator()));
+		String externalUrl = props.getExternalUrl();
+		Flux<String> flux = Flux.just("VCAP_APPLICATION={}", "VCAP_SERVICES={}",
+				"vcap.application.application_id=" + applicationId,
+				"vcap.application.cf_api=" + externalUrl);
+		if (externalUrl.startsWith("https")) {
+			flux = flux.concatWith(Mono.just(
+					"# management.cloudfoundry.skip-ssl-validation=true # if you use self-signed certificate"));
+		}
+		return flux.collect(Collectors.joining(System.lineSeparator()));
 	}
 }
