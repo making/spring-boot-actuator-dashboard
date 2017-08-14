@@ -21,21 +21,20 @@ import reactor.core.publisher.Mono;
 public class ProxyController {
 	private final ApplicationRepository applicationRepository;
 	private final AccessTokenService accessTokenService;
-	private final WebClient.Builder builder;
+	private final WebClient webClient;
 
 	public ProxyController(ApplicationRepository applicationRepository,
 			AccessTokenService accessTokenService, WebClient.Builder builder) {
 		this.applicationRepository = applicationRepository;
 		this.accessTokenService = accessTokenService;
-		this.builder = builder;
+		this.webClient = builder.build();
 	}
 
 	@GetMapping
 	public Mono<ResponseEntity<String>> get(@PathVariable String applicationId,
 			ServerHttpRequest request) {
-		return webClient(applicationId, request) //
-				.flatMap(client -> client.get() //
-						.exchange() //
+		return configure(this.webClient.get(), applicationId, request) //
+				.flatMap(spec -> spec.exchange() //
 						.flatMap(res -> res.bodyToMono(String.class) //
 								.map(b -> ResponseEntity.status(res.statusCode()).body(b)) //
 								.switchIfEmpty(emptyResponse(res))));
@@ -44,8 +43,8 @@ public class ProxyController {
 	@PostMapping
 	public Mono<ResponseEntity<String>> post(@PathVariable String applicationId,
 			ServerHttpRequest request) {
-		return webClient(applicationId, request) //
-				.flatMap(client -> client.post() //
+		return configure(this.webClient.post(), applicationId, request) //
+				.flatMap(spec -> spec
 						.header(CONTENT_TYPE, request.getHeaders().getFirst(CONTENT_TYPE)) //
 						.body(request.getBody(), DataBuffer.class) //
 						.exchange() //
@@ -58,7 +57,9 @@ public class ProxyController {
 		return Mono.fromCallable(() -> ResponseEntity.status(res.statusCode()).build());
 	}
 
-	Mono<WebClient> webClient(String applicationId, ServerHttpRequest request) {
+	<S extends WebClient.RequestHeadersSpec<S>> Mono<S> configure(
+			WebClient.RequestHeadersUriSpec<S> spec, String applicationId,
+			ServerHttpRequest request) {
 		Mono<Application> applicationMono = this.applicationRepository
 				.findById(applicationId);
 		Mono<AccessToken> accessTokenMono = this.accessTokenService
@@ -70,11 +71,10 @@ public class ProxyController {
 		PathContainer wildcard = request.getPath().subPath(5);
 
 		return Mono.when(applicationMono, accessTokenMono) //
-				.map(tpl -> this.builder.clone()
-						.baseUrl(tpl.getT1().getUrl() + "/cloudfoundryapplication/"
+				.map(tpl -> spec
+						.uri(tpl.getT1().getUrl() + "/cloudfoundryapplication/"
 								+ wildcard.value())
-						.defaultHeader(AUTHORIZATION, "bearer " + tpl.getT2().getToken()) //
-						.defaultHeader(REFERER, request.getHeaders().getFirst(REFERER)) //
-						.build());
+						.header(AUTHORIZATION, "bearer " + tpl.getT2().getToken()) //
+						.header(REFERER, request.getHeaders().getFirst(REFERER)));
 	}
 }
