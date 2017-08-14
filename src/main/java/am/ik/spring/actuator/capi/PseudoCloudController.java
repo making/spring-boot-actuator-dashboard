@@ -5,7 +5,6 @@ import static java.util.Collections.singletonMap;
 import java.util.Map;
 
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -41,15 +40,13 @@ public class PseudoCloudController {
 			@PathVariable String applicationId,
 			@RequestHeader(HttpHeaders.AUTHORIZATION) String authorization) {
 		String token = authorization.substring(7);
-		Mono<ResponseEntity<Map<String, Boolean>>> alternate = Mono
-				.fromCallable(() -> ResponseEntity.status(HttpStatus.FORBIDDEN).build());
 		return this.accessTokenService.checkToken(applicationId, token) //
 				.flatMap(accessToken -> this.applicationRepository.findById(applicationId)
 						.map(application -> ResponseEntity
 								.ok(singletonMap("read_sensitive_data",
 										application.isReadSensitiveData()))) //
 						.switchIfEmpty(forbidden()))
-				.switchIfEmpty(alternate);
+				.switchIfEmpty(forbidden());
 	}
 
 	Mono<ResponseEntity<Map<String, Boolean>>> forbidden() {
