@@ -4,7 +4,7 @@ import static org.springframework.http.HttpHeaders.*;
 
 import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.http.ResponseEntity;
-import org.springframework.http.server.reactive.PathContainer;
+import org.springframework.http.server.PathContainer;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.reactive.function.client.ClientResponse;
@@ -70,7 +70,7 @@ public class ProxyController {
 		// 0___1___2________3________4__5
 		PathContainer wildcard = request.getPath().subPath(5);
 
-		return Mono.when(applicationMono, accessTokenMono) //
+		return Mono.zip(applicationMono, accessTokenMono) //
 				.map(tpl -> spec
 						.uri(tpl.getT1().getUrl() + "/cloudfoundryapplication/"
 								+ wildcard.value())

@@ -96,7 +96,7 @@
             });
         var token = axios.post('/api/applications/' + applicationId + '/token')
             .then(function (res) {
-                return res.data.token;
+                return res.data.issueToken;
             });
 
         var properties = axios.get('/api/applications/' + applicationId + '/properties')
