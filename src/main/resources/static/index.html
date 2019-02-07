@@ -153,7 +153,7 @@
                 var html = [];
 
                 for (var key in links) {
-                    if (links.hasOwnProperty(key)) {
+                    if (links.hasOwnProperty(key) && !links[key].templated) {
                         html.push('<button class="ui green mini button" onclick="loadEndpoint(\'' + app.applicationId + '\',\'' + key + '\')">');
                         html.push(key);
                         html.push('</button>');
